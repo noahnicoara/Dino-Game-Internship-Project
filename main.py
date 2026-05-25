@@ -5,6 +5,7 @@ Made by intern: @bassemfarid, no one or nothing else. 🤖
 """
 
 import pygame
+from random import randint
 
 def display_score():
     current_time = int(pygame.time.get_ticks() / 100) - start_time
@@ -12,6 +13,22 @@ def display_score():
     score_rect = score_surf.get_rect(center = (400,50))
     screen.blit(score_surf,score_rect)
     return current_time
+
+def obstacle_movement(obstacle_list):
+    if obstacle_list:
+        for obstacle_rect in obstacle_list:
+            obstacle_rect.x -= 5
+
+            if obstacle_rect.bottom == 300:
+                screen.blit(egg_surf,obstacle_rect)
+            else:
+                screen.blit(fly_surf,obstacle_rect)
+        
+
+        obstacle_list = [obstacle for obstacle in obstacle_list if obstacle.x > -100]
+
+        return obstacle_list
+    else: return []
 
 # Initialize Pygame and create a window
 pygame.init()
@@ -37,8 +54,12 @@ game_font = pygame.font.Font(pygame.font.get_default_font(), 50)
 # Load sprite assets
 player_surf = pygame.image.load("graphics/player/player_walk_1.png").convert_alpha()
 player_rect = player_surf.get_rect(bottomleft=(25, GROUND_Y))
+
+obstacle_rect_list = []
+
+# Obstacles
 egg_surf = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
-egg_rect = egg_surf.get_rect(bottomleft=(800, GROUND_Y))
+fly_surf = pygame.image.load('graphics/fly/fly_1.png').convert_alpha()
 # Intro screen
 player_stand = pygame.image.load("graphics/player/player_jump.png").convert_alpha()
 player_stand = pygame.transform.rotozoom(player_stand,0,2)
@@ -49,6 +70,10 @@ game_name_rect = game_name.get_rect(center = (400,80))
 
 game_message = game_font.render('Press space to start', False, (111,196,169))
 game_message_rect = game_message.get_rect(center = (400,340))
+
+# Tiimer
+obstacle_timer = pygame.USEREVENT + 1
+pygame.time.set_timer(obstacle_timer,1250)
 
 while running:
     # Poll for events
@@ -69,8 +94,14 @@ while running:
             # When player wants to play again by pressing SPACE
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 is_playing = True
-                egg_rect.left = 800
                 start_time = int(pygame.time.get_ticks() / 100) 
+
+        if event.type == obstacle_timer and is_playing:
+            if randint(0,2):
+                obstacle_rect_list.append(egg_surf.get_rect(bottomleft=(randint(900,1100),300)))
+            else:
+                 obstacle_rect_list.append(fly_surf.get_rect(bottomleft=(randint(900,1100),520)))
+
 
     if is_playing:
         screen.fill("purple")  # Wipe the screen
@@ -84,10 +115,10 @@ while running:
         score = display_score()
 
         # Adjust egg's horizontal location then blit it
-        egg_rect.x -= 5
-        if egg_rect.right <= 0:
-            egg_rect.left = 800
-        screen.blit(egg_surf, egg_rect)
+        # egg_rect.x -= 5
+        # if egg_rect.right <= 0:
+        #     egg_rect.left = 800
+        # screen.blit(egg_surf, egg_rect)
 
         # Adjust player's vertical location then blit it
         players_gravity_speed += 1
@@ -96,9 +127,10 @@ while running:
             player_rect.bottom = GROUND_Y
         screen.blit(player_surf, player_rect)
 
+        # Obstacle Movement
+        obstacle_rect_list = obstacle_movement(obstacle_rect_list)
+
         # When player collides with enemy, game ends
-        if egg_rect.colliderect(player_rect):
-            is_playing = False
 
     # When game is over, display game over message
     else:
