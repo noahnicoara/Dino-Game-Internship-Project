@@ -7,6 +7,12 @@ Made by intern: @bassemfarid, no one or nothing else. 🤖
 import pygame
 from random import randint
 
+def collisions(player,obstacles):
+    if obstacles:
+        for obstacle_rect in obstacles:
+            if player.colliderect(obstacle_rect): return False
+    return True
+
 def display_score():
     current_time = int(pygame.time.get_ticks() / 100) - start_time
     score_surf = game_font.render(f"Score: {current_time}", False, (64,64,64))
@@ -41,7 +47,7 @@ score = 0
 # Game state variables
 is_playing = False  # Whether in game or in menu
 GROUND_Y = 300  # The Y-coordinate of the ground level
-JUMP_GRAVITY_START_SPEED = -15.7  # The speed at which the player jumps
+JUMP_GRAVITY_START_SPEED = -16.7  # The speed at which the player jumps
 players_gravity_speed = 0  # The current speed at which the player falls
 
 # Load level assets
@@ -60,6 +66,7 @@ obstacle_rect_list = []
 # Obstacles
 egg_surf = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
 fly_surf = pygame.image.load('graphics/fly/fly_1.png').convert_alpha()
+fly_surf = pygame.transform.rotozoom(fly_surf,0,3.5)
 # Intro screen
 player_stand = pygame.image.load("graphics/player/player_jump.png").convert_alpha()
 player_stand = pygame.transform.rotozoom(player_stand,0,2)
@@ -100,7 +107,7 @@ while running:
             if randint(0,2):
                 obstacle_rect_list.append(egg_surf.get_rect(bottomleft=(randint(900,1100),300)))
             else:
-                 obstacle_rect_list.append(fly_surf.get_rect(bottomleft=(randint(900,1100),520)))
+                 obstacle_rect_list.append(fly_surf.get_rect(bottomleft=(randint(900,1100),225)))
 
 
     if is_playing:
@@ -130,12 +137,18 @@ while running:
         # Obstacle Movement
         obstacle_rect_list = obstacle_movement(obstacle_rect_list)
 
+        # Collisions
+        is_playing = collisions(player_rect,obstacle_rect_list) 
+
         # When player collides with enemy, game ends
 
     # When game is over, display game over message
     else:
         screen.fill((94,129,162))
         screen.blit(player_stand,player_stand_rect)
+        obstacle_rect_list.clear()
+        player_rect.midbottom = (80,300)
+        players_gravity_speed = 0
         score_message = game_font.render(f"Your score: {score}", False, (111,196,169))
         score_message_rect = score_message.get_rect( center = (400,330))
         screen.blit(game_name, game_name_rect)
