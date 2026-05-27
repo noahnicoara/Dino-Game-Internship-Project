@@ -36,6 +36,18 @@ def obstacle_movement(obstacle_list):
         return obstacle_list
     else: return []
 
+
+def player_animation():
+    global player_surf, player_index
+    # Play walking animations if player is on the floor
+    # Display jump animation when player is not on the floor
+    if player_rect.bottom < 300:
+        player_surf = player_jump
+    else:
+        player_index += 0.1
+        if player_index >= len(player_walk): player_index = 0
+        player_surf = player_walk[int(player_index)]
+
 # Initialize Pygame and create a window
 pygame.init()
 screen = pygame.display.set_mode((800, 400))
@@ -58,15 +70,29 @@ game_font = pygame.font.Font(pygame.font.get_default_font(), 50)
 # score_rect = score_surf.get_rect(center=(400, 50))
 
 # Load sprite assets
-player_surf = pygame.image.load("graphics/player/player_walk_1.png").convert_alpha()
+player_walk_1 = pygame.image.load("graphics/player/player_walk_1.png").convert_alpha()
+player_walk_2 = pygame.image.load("graphics/player/player_walk_2.png").convert_alpha()
+player_walk = [player_walk_1,player_walk_2]
+player_index = 0
+player_jump = pygame.image.load("graphics/player/player_jump.png").convert_alpha()
+
+player_surf = player_walk[player_index]
 player_rect = player_surf.get_rect(bottomleft=(25, GROUND_Y))
+players_gravity_speed = 0
 
 obstacle_rect_list = []
 
 # Obstacles
-egg_surf = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
-fly_surf = pygame.image.load('graphics/fly/fly_1.png').convert_alpha()
-fly_surf = pygame.transform.rotozoom(fly_surf,0,3.5)
+
+# Egg 
+egg_frame_1 = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
+egg_frame_2 = pygame.image.load("graphics/egg/egg_2.png").convert_alpha()
+
+# Fly 
+fly_frame_1 = pygame.image.load('graphics/fly/fly_1.png').convert_alpha()
+fly_frame_1 = pygame.transform.rotozoom(fly_frame_1,0,3.5)
+fly_frame_2 = pygame.image.load('graphics/fly/fly_2.png').convert_alpha()
+fly_frame_2 = pygame.transform.rotozoom(fly_frame_2,0,3.5)
 # Intro screen
 player_stand = pygame.image.load("graphics/player/player_jump.png").convert_alpha()
 player_stand = pygame.transform.rotozoom(player_stand,0,2)
@@ -130,9 +156,9 @@ while running:
         # Adjust player's vertical location then blit it
         players_gravity_speed += 1
         player_rect.y += players_gravity_speed
-        if player_rect.bottom > GROUND_Y:
-            player_rect.bottom = GROUND_Y
-        screen.blit(player_surf, player_rect)
+        if player_rect.bottom >= 300: player_rect.bottom = 300
+        player_animation()
+        screen.blit(player_surf,player_rect)
 
         # Obstacle Movement
         obstacle_rect_list = obstacle_movement(obstacle_rect_list)
