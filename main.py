@@ -87,12 +87,18 @@ obstacle_rect_list = []
 # Egg 
 egg_frame_1 = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
 egg_frame_2 = pygame.image.load("graphics/egg/egg_2.png").convert_alpha()
+egg_frames = [egg_frame_1,egg_frame_2]
+egg_frame_index = 0
+egg_surf = egg_frames[egg_frame_index]
 
 # Fly 
 fly_frame_1 = pygame.image.load('graphics/fly/fly_1.png').convert_alpha()
-fly_frame_1 = pygame.transform.rotozoom(fly_frame_1,0,3.5)
+fly_frame_1 = pygame.transform.rotozoom(fly_frame_1,0,2.5)
 fly_frame_2 = pygame.image.load('graphics/fly/fly_2.png').convert_alpha()
-fly_frame_2 = pygame.transform.rotozoom(fly_frame_2,0,3.5)
+fly_frame_2 = pygame.transform.rotozoom(fly_frame_2,0,2.5)
+fly_frames = [fly_frame_1,fly_frame_2]
+fly_frame_index = 0
+fly_surf = fly_frames[fly_frame_index]
 # Intro screen
 player_stand = pygame.image.load("graphics/player/player_jump.png").convert_alpha()
 player_stand = pygame.transform.rotozoom(player_stand,0,2)
@@ -107,6 +113,12 @@ game_message_rect = game_message.get_rect(center = (400,340))
 # Tiimer
 obstacle_timer = pygame.USEREVENT + 1
 pygame.time.set_timer(obstacle_timer,1250)
+
+egg_animation_timer = pygame.USEREVENT + 2
+pygame.time.set_timer(egg_animation_timer,500)
+
+fly_animation_timer = pygame.USEREVENT + 2
+pygame.time.set_timer(fly_animation_timer,500)
 
 while running:
     # Poll for events
@@ -129,11 +141,23 @@ while running:
                 is_playing = True
                 start_time = int(pygame.time.get_ticks() / 100) 
 
-        if event.type == obstacle_timer and is_playing:
-            if randint(0,2):
-                obstacle_rect_list.append(egg_surf.get_rect(bottomleft=(randint(900,1100),300)))
-            else:
-                 obstacle_rect_list.append(fly_surf.get_rect(bottomleft=(randint(900,1100),225)))
+        if is_playing:
+            if event.type == obstacle_timer:
+                if randint(0,2):
+                    obstacle_rect_list.append(egg_surf.get_rect(bottomleft=(randint(900,1100),300)))
+                else:
+                    obstacle_rect_list.append(fly_surf.get_rect(bottomleft=(randint(900,1100),235)))
+            
+            if event.type == egg_animation_timer:
+                if egg_frame_index == 0: egg_frame_index = 1
+                else: egg_frame_index = 0
+                egg_surf = egg_frames[egg_frame_index]
+
+            if event.type == fly_animation_timer:
+                if fly_frame_index == 0: fly_frame_index = 1
+                else: fly_frame_index = 0
+                fly_surf = fly_frames[fly_frame_index]
+
 
 
     if is_playing:
