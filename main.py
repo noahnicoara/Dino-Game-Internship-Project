@@ -59,7 +59,7 @@ score = 0
 # Game state variables
 is_playing = False  # Whether in game or in menu
 GROUND_Y = 300  # The Y-coordinate of the ground level
-JUMP_GRAVITY_START_SPEED = -16.7  # The speed at which the player jumps
+JUMP_GRAVITY_START_SPEED = -20  # The speed at which the player jumps
 players_gravity_speed = 0  # The current speed at which the player falls
 
 # Load level assets
@@ -71,10 +71,13 @@ game_font = pygame.font.Font(pygame.font.get_default_font(), 50)
 
 # Load sprite assets
 player_walk_1 = pygame.image.load("graphics/player/player_walk_1.png").convert_alpha()
+player_walk_1 = pygame.transform.scale_by(player_walk_1,2)
 player_walk_2 = pygame.image.load("graphics/player/player_walk_2.png").convert_alpha()
+player_walk_2 = pygame.transform.scale_by(player_walk_2,2)
 player_walk = [player_walk_1,player_walk_2]
 player_index = 0
 player_jump = pygame.image.load("graphics/player/player_jump.png").convert_alpha()
+player_jump = pygame.transform.scale_by(player_jump,2)
 
 player_surf = player_walk[player_index]
 player_rect = player_surf.get_rect(bottomleft=(25, GROUND_Y))
@@ -93,15 +96,15 @@ egg_surf = egg_frames[egg_frame_index]
 
 # Fly 
 fly_frame_1 = pygame.image.load('graphics/fly/fly_1.png').convert_alpha()
-fly_frame_1 = pygame.transform.rotozoom(fly_frame_1,0,2.5)
+fly_frame_1 = pygame.transform.scale_by(fly_frame_1,2.5)
 fly_frame_2 = pygame.image.load('graphics/fly/fly_2.png').convert_alpha()
-fly_frame_2 = pygame.transform.rotozoom(fly_frame_2,0,2.5)
+fly_frame_2 = pygame.transform.scale_by(fly_frame_2,2.5)
 fly_frames = [fly_frame_1,fly_frame_2]
 fly_frame_index = 0
 fly_surf = fly_frames[fly_frame_index]
 # Intro screen
 player_stand = pygame.image.load("graphics/player/player_jump.png").convert_alpha()
-player_stand = pygame.transform.rotozoom(player_stand,0,2)
+player_stand = pygame.transform.scale_by(player_stand,2)
 player_stand_rect = player_stand.get_rect(center = (400,200))
 
 game_name = game_font.render('Dino Game', False, (111,196,169))
@@ -146,7 +149,7 @@ while running:
                 if randint(0,2):
                     obstacle_rect_list.append(egg_surf.get_rect(bottomleft=(randint(900,1100),300)))
                 else:
-                    obstacle_rect_list.append(fly_surf.get_rect(bottomleft=(randint(900,1100),235)))
+                    obstacle_rect_list.append(fly_surf.get_rect(bottomleft=(randint(900,1100),200)))
             
             if event.type == egg_animation_timer:
                 if egg_frame_index == 0: egg_frame_index = 1
