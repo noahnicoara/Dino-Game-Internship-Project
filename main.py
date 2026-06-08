@@ -23,7 +23,7 @@ def display_score():
 def obstacle_movement(obstacle_list):
     if obstacle_list:
         for obstacle_rect in obstacle_list:
-            obstacle_rect.x -= 5
+            obstacle_rect.x -= int(5+score/80)
 
             if obstacle_rect.bottom == 300:
                 screen.blit(egg_surf,obstacle_rect)
@@ -55,6 +55,10 @@ clock = pygame.time.Clock()
 running = True  # Pygame main loop, kills pygame when False
 start_time = 0
 score = 0
+ground_x = 0
+ground_speed = 5
+game_speed = int(5 + score / 80)
+sky_x = 0
 
 # Game state variables
 is_playing = False  # Whether in game or in menu
@@ -167,8 +171,22 @@ while running:
         screen.fill("purple")  # Wipe the screen
 
         # Blit the level assets
-        screen.blit(SKY_SURF, (0, 0))
-        screen.blit(GROUND_SURF, (0, GROUND_Y))
+        sky_x -= game_speed * 0.3
+
+        if sky_x <= -SKY_SURF.get_width():
+            sky_x = 0
+
+        screen.blit(SKY_SURF, (sky_x,0))
+        screen.blit(SKY_SURF, (sky_x + SKY_SURF.get_width(), 0))
+
+
+        ground_x -= game_speed
+
+        if ground_x <= -GROUND_SURF.get_width():
+            ground_x = 0
+
+        screen.blit(GROUND_SURF, (ground_x, GROUND_Y))
+        screen.blit(GROUND_SURF, (ground_x + GROUND_SURF.get_width(), GROUND_Y))
         # pygame.draw.rect(screen, "#c0e8ec", score_rect)
         # pygame.draw.rect(screen, "#c0e8ec", score_rect, 10)
         # screen.blit(score_surf, score_rect)
