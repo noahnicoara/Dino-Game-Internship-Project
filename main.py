@@ -63,8 +63,8 @@ sky_x = 0
 # Game state variables
 is_playing = False  # Whether in game or in menu
 GROUND_Y = 300  # The Y-coordinate of the ground level
-JUMP_GRAVITY_START_SPEED = -20  # The speed at which the player jumps
-players_gravity_speed = 0  # The current speed at which the player falls
+JUMP_GRAVITY_START_SPEED = -22.5 # The speed at which the player jumps
+players_gravity_speed = 0 # The current speed at which the player falls
 
 # Load level assets
 SKY_SURF = pygame.image.load("graphics/level/sky.png").convert()
@@ -93,7 +93,9 @@ obstacle_rect_list = []
 
 # Egg 
 egg_frame_1 = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
+egg_frame_1 = pygame.transform.scale_by(egg_frame_1,1.65)
 egg_frame_2 = pygame.image.load("graphics/egg/egg_2.png").convert_alpha()
+egg_frame_2 = pygame.transform.scale_by(egg_frame_2,1.65)
 egg_frames = [egg_frame_1,egg_frame_2]
 egg_frame_index = 0
 egg_surf = egg_frames[egg_frame_index]
@@ -119,7 +121,8 @@ game_message_rect = game_message.get_rect(center = (400,340))
 
 # Tiimer
 obstacle_timer = pygame.USEREVENT + 1
-pygame.time.set_timer(obstacle_timer,1250)
+spawn_rate = max(450,1250 - score *4)
+pygame.time.set_timer(obstacle_timer,spawn_rate)
 
 egg_animation_timer = pygame.USEREVENT + 2
 pygame.time.set_timer(egg_animation_timer,500)
@@ -141,7 +144,7 @@ while running:
                 and event.key == pygame.K_SPACE
                 or event.type == pygame.MOUSEBUTTONDOWN
             ) and player_rect.bottom >= GROUND_Y:
-                players_gravity_speed = JUMP_GRAVITY_START_SPEED
+                players_gravity_speed = JUMP_GRAVITY_START_SPEED 
         else:
             # When player wants to play again by pressing SPACE
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -200,6 +203,9 @@ while running:
 
         # Adjust player's vertical location then blit it
         players_gravity_speed += 1
+
+        if players_gravity_speed > 0:
+            players_gravity_speed += score/500
         player_rect.y += players_gravity_speed
         if player_rect.bottom >= 300: player_rect.bottom = 300
         player_animation()
