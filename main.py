@@ -7,6 +7,38 @@ Made by intern: @bassemfarid, no one or nothing else. 🤖
 import pygame
 from random import randint
 
+from operator import itemgetter
+
+score_file = "scores.txt"
+
+def load_scores():
+    scores = []
+
+    try:
+        file = open(score_file, "r")
+        for line in file:
+            line = line.strip()
+            if "," in line:
+                name, score = line.rsplit(",", 1)
+                scores.append((name,int(score)))
+        file.close()
+    except FileNotFoundError:
+        pass
+
+    scores.sort(key=itemgetter(1), reverse=True)
+    return scores [:5]
+
+def save_score(name, score):
+    scores = load_scores()
+    scores.append((name, score))
+    scores.sort(key=itemgetter(1), reverse=True)
+    scores = scores[:5]
+
+    file = open(score_file, "w")
+    for name, score in scores:
+        file.write(f"{name},{score}\n")
+    file.close()
+
 def collisions(player,obstacles):
     if obstacles:
         for obstacle_rect in obstacles:
@@ -57,8 +89,18 @@ start_time = 0
 score = 0
 ground_x = 0
 ground_speed = 5
-game_speed = int(5 + score / 80)
+game_speed = int(5 + score / 75)
 sky_x = 0
+lives = 3
+is_invincible = False
+invincible_timer = 0
+invincible_duration = 90
+menu_state = "main"
+selected_level = 1
+is_entering_name = False
+username = ""
+last_player = ""
+SKY_SURF = None
 
 # Game state variables
 is_playing = False  # Whether in game or in menu
@@ -67,9 +109,21 @@ JUMP_GRAVITY_START_SPEED = -22.5 # The speed at which the player jumps
 players_gravity_speed = 0 # The current speed at which the player falls
 
 # Load level assets
-SKY_SURF = pygame.image.load("graphics/level/sky.png").convert()
+sky_1 = pygame.image.load("graphics/level/sky.png").convert()
+sky_2 = pygame.image.load("graphics/level/desert.png").convert()
+sky_3 = pygame.image.load("graphics/level/volcano.png").convert()
+SKY_SURF = sky_1
 GROUND_SURF = pygame.image.load("graphics/level/ground.png").convert()
+heart_surf = pygame.image.load("graphics/level/heart.png").convert_alpha()
+heart_surf = pygame.transform.scale_by(heart_surf,2.5)
+title_screen = pygame.image.load("graphics/menus/title_screen.png").convert()
+title_screen = pygame.transform.scale(title_screen, (800,400))
+story_screen = pygame.image.load("graphics/menus/story_screen.png").convert()
+story_screen = pygame.transform.scale(story_screen, (800,400))
+level_screen = pygame.image.load("graphics/menus/level_screen.png").convert()
+level_screen = pygame.transform.scale(level_screen, (800,400))
 game_font = pygame.font.Font(pygame.font.get_default_font(), 50)
+game_font = pygame.font.Font("graphics/fonts/PressStart2P.ttf", 32)
 # score_surf = game_font.render("SCORE?", False, "Black")
 # score_rect = score_surf.get_rect(center=(400, 50))
 
@@ -93,9 +147,9 @@ obstacle_rect_list = []
 
 # Egg 
 egg_frame_1 = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
-egg_frame_1 = pygame.transform.scale_by(egg_frame_1,1.65)
+egg_frame_1 = pygame.transform.scale_by(egg_frame_1,1.5)
 egg_frame_2 = pygame.image.load("graphics/egg/egg_2.png").convert_alpha()
-egg_frame_2 = pygame.transform.scale_by(egg_frame_2,1.65)
+egg_frame_2 = pygame.transform.scale_by(egg_frame_2,1.5)
 egg_frames = [egg_frame_1,egg_frame_2]
 egg_frame_index = 0
 egg_surf = egg_frames[egg_frame_index]
@@ -147,9 +201,70 @@ while running:
                 players_gravity_speed = JUMP_GRAVITY_START_SPEED 
         else:
             # When player wants to play again by pressing SPACE
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                is_playing = True
-                start_time = int(pygame.time.get_ticks() / 100) 
+            if event.type == pygame.KEYDOWN:
+
+                if menu_state == "main":
+
+                    if event.key == pygame.K_RETURN:
+                        lives = 3
+                        is_invincible = False
+                        is_playing = True
+                        start_time = int(pygame.time.get_ticks() / 100) 
+
+                    elif event.key == pygame.K_k:
+                        menu_state = "levels"
+
+                    elif event.key == pygame.K_m:
+                        menu_state = "story"
+
+                elif menu_state == "levels":
+
+                    if event.key == pygame.K_ESCAPE:
+                        menu_state = "main"
+
+                    elif event.key == pygame.K_1:
+                        selected_level = 1
+                        SKY_SURF = sky_1
+                        menu_state = "main"
+                    
+                    elif event.key == pygame.K_2:
+                        selected_level = 2
+                        SKY_SURF = sky_2
+                        menu_state = "main"
+
+                    elif event.key == pygame.K_3:
+                        selected_level = 3
+                        SKY_SURF = sky_3
+                        menu_state = "main"
+                
+                elif menu_state == "story":
+
+                    if event.key == pygame.K_ESCAPE:
+                        menu_state = "main"
+
+                elif menu_state == "game_over":
+
+                    if is_entering_name:
+                        if event.key == pygame.K_RETURN and username.strip():
+                            last_player = username.strip()
+                            save_score(last_player, score)
+                            is_entering_name = False
+
+                        elif event.key == pygame.K_BACKSPACE:
+                            username = username[:-1]
+
+                        elif event.unicode.isprintable() and len(username)<12:
+                            username += event.unicode
+                    else:
+                        if event.key == pygame.K_SPACE:
+                            lives = 3
+                            is_invincible = False
+                            obstacle_rect_list.clear()
+                            is_playing = True
+                            start_time = int(pygame.time.get_ticks() / 100)
+                        
+                        elif event.key == pygame.K_ESCAPE:
+                            menu_state = "main"                     
 
         if is_playing:
             if event.type == obstacle_timer:
@@ -183,7 +298,7 @@ while running:
         screen.blit(SKY_SURF, (sky_x + SKY_SURF.get_width(), 0))
 
 
-        ground_x -= game_speed
+        ground_x -= game_speed * 1.2
 
         if ground_x <= -GROUND_SURF.get_width():
             ground_x = 0
@@ -194,6 +309,8 @@ while running:
         # pygame.draw.rect(screen, "#c0e8ec", score_rect, 10)
         # screen.blit(score_surf, score_rect)
         score = display_score()
+        for i in range(lives):
+            screen.blit(heart_surf, (10 + i * 40, 10))
 
         # Adjust egg's horizontal location then blit it
         # egg_rect.x -= 5
@@ -209,31 +326,97 @@ while running:
         player_rect.y += players_gravity_speed
         if player_rect.bottom >= 300: player_rect.bottom = 300
         player_animation()
-        screen.blit(player_surf,player_rect)
+        if not is_invincible or pygame.time.get_ticks() % 200 <100:
+            screen.blit(player_surf, player_rect)
 
         # Obstacle Movement
         obstacle_rect_list = obstacle_movement(obstacle_rect_list)
 
         # Collisions
-        is_playing = collisions(player_rect,obstacle_rect_list) 
+        if not collisions(player_rect, obstacle_rect_list) and not is_invincible:
+            lives -= 1
+
+            is_invincible = True
+            invincible_timer = invincible_duration
+
+            obstacle_rect_list.clear()
+
+            if lives <= 0:
+                is_playing = False
+                menu_state = "game_over"
+                is_entering_name = True
+                username = ""
+
+        # Invincibility Timer
+
+        if is_invincible:
+            invincible_timer -= 1
+
+        if invincible_timer <= 0:
+            is_invincible = False
+
 
         # When player collides with enemy, game ends
 
     # When game is over, display game over message
     else:
-        screen.fill((94,129,162))
-        screen.blit(player_stand,player_stand_rect)
         obstacle_rect_list.clear()
         player_rect.midbottom = (80,300)
         players_gravity_speed = 0
-        score_message = game_font.render(f"Your score: {score}", False, (111,196,169))
-        score_message_rect = score_message.get_rect( center = (400,330))
-        screen.blit(game_name, game_name_rect)
 
-        if score == 0:
-            screen.blit(game_message, game_message_rect)
-        else:
-            screen.blit(score_message,score_message_rect)
+        if menu_state == "main":
+            screen.blit(title_screen, (0,0))
+        
+        elif menu_state == "levels":
+            screen.blit(level_screen,(0,0))
+
+        elif menu_state == "story":
+            screen.blit(story_screen, (0,0))
+
+        elif menu_state == "game_over":
+            screen.fill((25, 30, 25))
+
+            title = game_font.render("GAME OVER", False, "white")
+            score_text = game_font.render(f"SCORE: {score}", False, "white")
+
+            screen.blit(title, title.get_rect(center=(400, 60)))
+            screen.blit(score_text, score_text.get_rect(center=(400, 120)))
+
+            if is_entering_name:
+                 name_text = game_font.render("ENTER NAME:", False, "white")
+                 typed_text = game_font.render(username + "|", False, "white")
+                 save_text = game_font.render("PRESS ENTER TO SAVE", False, "white")
+                 
+                 screen.blit(name_text, name_text.get_rect(center=(400, 190)))
+                 screen.blit(typed_text, typed_text.get_rect(center=(400, 245)))
+                 screen.blit(save_text, save_text.get_rect(center=(400, 320)))
+
+            else:
+                leaderboard_title = game_font.render("TOP 5", False, "white")
+                screen.blit(leaderboard_title, leaderboard_title.get_rect(center=(400, 165)))
+
+                scores = load_scores()
+
+                for i, (name, saved_score) in enumerate(scores):
+
+                    if name == last_player:
+                        color = "yellow"
+                    else:
+                        color = "white"
+
+                    line = game_font.render(
+                         f"{i+1}. {name}  {saved_score}",
+                        False,
+                        color
+                    )
+
+                    screen.blit(line, line.get_rect(center=(400, 210 + i * 30)))
+
+                restart = game_font.render("SPACE - PLAY AGAIN", False, "white")
+                menu = game_font.render("ESC - MENU", False, "white")
+
+                screen.blit(restart, restart.get_rect(center=(400, 355)))
+                screen.blit(menu, menu.get_rect(center=(400, 385)))
 
     # flip the display to put your work on screen
     pygame.display.flip()
