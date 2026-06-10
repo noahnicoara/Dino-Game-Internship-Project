@@ -1,5 +1,5 @@
+groot,455
 elliot,409
+amirr,362
 mike,338
-caden,270
-jacob,234
-noah,218
+noah,308

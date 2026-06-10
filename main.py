@@ -124,6 +124,18 @@ level_screen = pygame.image.load("graphics/menus/level_screen.png").convert()
 level_screen = pygame.transform.scale(level_screen, (800,400))
 game_font = pygame.font.Font(pygame.font.get_default_font(), 50)
 game_font = pygame.font.Font("graphics/fonts/PressStart2P.ttf", 32)
+
+# Load royalty free audio assets
+
+music = pygame.mixer.Sound("audio/music.mp3")
+jump_sound = pygame.mixer.Sound("audio/jump.mp3")
+hurt = pygame.mixer.Sound("audio/hurt.mp3")
+click = pygame.mixer.Sound("audio/click.mp3")
+game_over = pygame.mixer.Sound("audio/game_over.mp3")
+
+music.set_volume(0.7)
+music.play(loops=-1)
+
 # score_surf = game_font.render("SCORE?", False, "Black")
 # score_rect = score_surf.get_rect(center=(400, 50))
 
@@ -198,7 +210,8 @@ while running:
                 and event.key == pygame.K_SPACE
                 or event.type == pygame.MOUSEBUTTONDOWN
             ) and player_rect.bottom >= GROUND_Y:
-                players_gravity_speed = JUMP_GRAVITY_START_SPEED 
+                players_gravity_speed = JUMP_GRAVITY_START_SPEED
+                jump_sound.play(loops= 0)
         else:
             # When player wants to play again by pressing SPACE
             if event.type == pygame.KEYDOWN:
@@ -206,33 +219,40 @@ while running:
                 if menu_state == "main":
 
                     if event.key == pygame.K_RETURN:
+                        click.play(loops= 0)
                         lives = 3
                         is_invincible = False
                         is_playing = True
                         start_time = int(pygame.time.get_ticks() / 100) 
 
                     elif event.key == pygame.K_k:
+                        click.play(loops= 0)
                         menu_state = "levels"
 
                     elif event.key == pygame.K_m:
+                        click.play(loops= 0)
                         menu_state = "story"
 
                 elif menu_state == "levels":
 
                     if event.key == pygame.K_ESCAPE:
+                        click.play(loops= 0)
                         menu_state = "main"
 
                     elif event.key == pygame.K_1:
+                        click.play(loops= 0)
                         selected_level = 1
                         SKY_SURF = sky_1
                         menu_state = "main"
                     
                     elif event.key == pygame.K_2:
+                        click.play(loops= 0)
                         selected_level = 2
                         SKY_SURF = sky_2
                         menu_state = "main"
 
                     elif event.key == pygame.K_3:
+                        click.play(loops= 0)
                         selected_level = 3
                         SKY_SURF = sky_3
                         menu_state = "main"
@@ -240,9 +260,10 @@ while running:
                 elif menu_state == "story":
 
                     if event.key == pygame.K_ESCAPE:
+                        click.play(loops= 0)
                         menu_state = "main"
 
-                elif menu_state == "game_over":
+                elif menu_state == "game_over": 
 
                     if is_entering_name:
                         if event.key == pygame.K_RETURN and username.strip():
@@ -257,6 +278,7 @@ while running:
                             username += event.unicode
                     else:
                         if event.key == pygame.K_SPACE:
+                            click.play(loops= 0)
                             lives = 3
                             is_invincible = False
                             obstacle_rect_list.clear()
@@ -264,6 +286,7 @@ while running:
                             start_time = int(pygame.time.get_ticks() / 100)
                         
                         elif event.key == pygame.K_ESCAPE:
+                            click.play(loops= 0)
                             menu_state = "main"                     
 
         if is_playing:
@@ -335,6 +358,8 @@ while running:
         # Collisions
         if not collisions(player_rect, obstacle_rect_list) and not is_invincible:
             lives -= 1
+            hurt.play(loops= 0)
+
 
             is_invincible = True
             invincible_timer = invincible_duration
