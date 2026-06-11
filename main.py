@@ -92,6 +92,22 @@ ground_speed = 5
 game_speed = int(5 + score / 75)
 sky_x = 0
 lives = 3
+
+# Boss fight state
+BOSS_WARNING_START = 400
+BOSS_FIGHT_START = 500
+boss_active = False
+boss_defeated = False
+boss_x = 900.0
+boss_y = 20.0
+boss_speed = 2.2
+boss_drop_interval = 47
+boss_frame_index = 0
+fireball_frame_index = 0
+fireball_list = []
+WARNING_RED = (255, 40, 40)
+WARNING_AMBER = (255, 180, 0)
+
 is_invincible = False
 invincible_timer = 0
 invincible_duration = 90
@@ -132,6 +148,7 @@ jump_sound = pygame.mixer.Sound("audio/jump.mp3")
 hurt = pygame.mixer.Sound("audio/hurt.mp3")
 click = pygame.mixer.Sound("audio/click.mp3")
 game_over = pygame.mixer.Sound("audio/game_over.mp3")
+dragon_breath = pygame.mixer.Sound("audio/dragon_breath.mp3")
 
 music.set_volume(0.7)
 music.play(loops=-1)
@@ -174,6 +191,21 @@ fly_frame_2 = pygame.transform.scale_by(fly_frame_2,2.5)
 fly_frames = [fly_frame_1,fly_frame_2]
 fly_frame_index = 0
 fly_surf = fly_frames[fly_frame_index]
+boss_frame_1 = pygame.image.load("graphics/fly/boss_1.png").convert_alpha()
+boss_frame_1 = pygame.transform.scale_by(boss_frame_1,1.75)
+boss_frame_2 = pygame.image.load("graphics/fly/boss_2.png").convert_alpha()
+boss_frame_2 = pygame.transform.scale_by(boss_frame_2,1.75)
+boss_frames = [boss_frame_1,boss_frame_2]
+boss_frame_index = 0
+boss_surf = boss_frames[boss_frame_index]
+
+fireball_frame_1 = pygame.image.load("graphics/egg/fireball_1.png").convert_alpha()
+fireball_frame_1 = pygame.transform.scale_by(fireball_frame_1,3)
+fireball_frame_2 = pygame.image.load("graphics/egg/fireball_2.png").convert_alpha()
+fireball_frame_2 = pygame.transform.scale_by(fireball_frame_2,3)
+fireball_frames = [fireball_frame_1,fireball_frame_2]
+fireball_frame_index = 0
+fireball_surf = fireball_frames[fireball_frame_index]
 # Intro screen
 player_stand = pygame.image.load("graphics/player/player_jump.png").convert_alpha()
 player_stand = pygame.transform.scale_by(player_stand,2)
@@ -195,6 +227,12 @@ pygame.time.set_timer(egg_animation_timer,500)
 
 fly_animation_timer = pygame.USEREVENT + 2
 pygame.time.set_timer(fly_animation_timer,500)
+
+boss_animation_timer = pygame.USEREVENT + 3
+pygame.time.set_timer(boss_animation_timer, 150)
+
+fireball_animation_timer = pygame.USEREVENT + 4
+pygame.time.set_timer(fireball_animation_timer, 150)
 
 while running:
     # Poll for events
@@ -224,6 +262,12 @@ while running:
                         is_invincible = False
                         is_playing = True
                         start_time = int(pygame.time.get_ticks() / 100) 
+                        boss_active = False
+                        boss_defeated = False
+                        boss_x = 900.0
+                        boss_drop_timer = 0
+                        fireball_list.clear()
+                        warning_flash_tick = 0
 
                     elif event.key == pygame.K_k:
                         click.play(loops= 0)
@@ -284,13 +328,19 @@ while running:
                             obstacle_rect_list.clear()
                             is_playing = True
                             start_time = int(pygame.time.get_ticks() / 100)
+                            boss_active = False
+                            boss_defeated = False
+                            boss_x = 900.0
+                            boss_drop_timer = 0
+                            fireball_list.clear()
+                            warning_flash_tick = 0
                         
                         elif event.key == pygame.K_ESCAPE:
                             click.play(loops= 0)
                             menu_state = "main"                     
 
         if is_playing:
-            if event.type == obstacle_timer:
+            if event.type == obstacle_timer and not boss_active:
                 if randint(0,2):
                     obstacle_rect_list.append(egg_surf.get_rect(bottomleft=(randint(900,1100),300)))
                 else:
@@ -305,6 +355,16 @@ while running:
                 if fly_frame_index == 0: fly_frame_index = 1
                 else: fly_frame_index = 0
                 fly_surf = fly_frames[fly_frame_index]
+
+            if event.type == boss_animation_timer and boss_active:
+                if boss_frame_index == 0: boss_frame_index = 1
+                else: boss_frame_index = 0
+                boss_surf = boss_frames[boss_frame_index]
+
+            if event.type == fireball_animation_timer:
+                if fireball_frame_index == 0: fireball_frame_index = 1
+                else: fireball_frame_index = 0
+                fireball_surf = fireball_frames[fireball_frame_index]
 
 
 
@@ -352,25 +412,91 @@ while running:
         if not is_invincible or pygame.time.get_ticks() % 200 <100:
             screen.blit(player_surf, player_rect)
 
-        # Obstacle Movement
-        obstacle_rect_list = obstacle_movement(obstacle_rect_list)
-
-        # Collisions
-        if not collisions(player_rect, obstacle_rect_list) and not is_invincible:
-            lives -= 1
-            hurt.play(loops= 0)
-
-
-            is_invincible = True
-            invincible_timer = invincible_duration
-
+        # ── Warning phase (score 400–499) ──
+        if BOSS_WARNING_START <= score < BOSS_FIGHT_START:
             obstacle_rect_list.clear()
+            warning_flash_tick += 1
+            if (warning_flash_tick // 20) % 2 == 0:
+                overlay = pygame.Surface((800, 60), pygame.SRCALPHA)
+                overlay.fill((180, 0, 0, 140))
+                screen.blit(overlay, (0, 170))
+                line1 = game_font.render("DRAGON BOSS AT 500", False, WARNING_AMBER)
+                line2 = game_font.render("GET READY", False, WARNING_RED)
+                screen.blit(line1, line1.get_rect(center=(400, 183)))
+                screen.blit(line2, line2.get_rect(center=(400, 218)))
 
-            if lives <= 0:
-                is_playing = False
-                menu_state = "game_over"
-                is_entering_name = True
-                username = ""
+        # ── Boss fight (score 500+) ──
+        elif score >= BOSS_FIGHT_START and not boss_defeated:
+            if not boss_active:
+                boss_active = True
+                boss_x = 900.0
+                boss_drop_timer = 0
+                obstacle_rect_list.clear()
+                dragon_breath.play(loops=0)
+
+            # Draw dragon
+            screen.blit(boss_surf, (int(boss_x), int(boss_y)))
+            boss_x -= boss_speed
+
+            if boss_x < -boss_surf.get_width() - 20:
+                boss_active = False
+                boss_defeated = True
+                fireball_list.clear()
+
+            # Drop a fireball on a timer
+            boss_drop_timer += 1
+            if boss_drop_timer >= boss_drop_interval:
+                boss_drop_timer = 0
+                drop_x = int(boss_x) + boss_surf.get_width() // 2 + randint(-30, 30)
+                drop_y = int(boss_y) + boss_surf.get_height()
+                fb_rect = fireball_surf.get_rect(midtop=(drop_x, drop_y))
+                fireball_list.append([fb_rect, 2.0])
+
+            # Move and draw fireballs
+            new_fireball_list = []
+            for fb in fireball_list:
+                fb_rect, vy = fb
+                vy += 0.55
+                fb[1] = vy
+                fb_rect.y += int(vy)
+                if fb_rect.bottom >= GROUND_Y:
+                    fb_rect.bottom = GROUND_Y
+                fb_rect.x -= int(5 + score / 80)
+                screen.blit(fireball_surf, fb_rect)
+                if fb_rect.right > 0:
+                    new_fireball_list.append(fb)
+            fireball_list[:] = new_fireball_list
+
+            # Fireball collision
+            for fb in fireball_list:
+                if player_rect.colliderect(fb[0]) and not is_invincible:
+                    lives -= 1
+                    hurt.play(loops=0)
+                    is_invincible = True
+                    invincible_timer = invincible_duration
+                    fireball_list.clear()
+                    if lives <= 0:
+                        is_playing = False
+                        menu_state = "game_over"
+                        is_entering_name = True
+                        username = ""
+                    break
+
+        # ── Normal gameplay ──
+        else:
+            obstacle_rect_list = obstacle_movement(obstacle_rect_list)
+            if not collisions(player_rect, obstacle_rect_list) and not is_invincible:
+                lives -= 1
+                hurt.play(loops=0)
+                is_invincible = True
+                invincible_timer = invincible_duration
+                obstacle_rect_list.clear()
+                if lives <= 0:
+                    is_playing = False
+                    menu_state = "game_over"
+                    is_entering_name = True
+                    username = ""
+
 
         # Invincibility Timer
 
