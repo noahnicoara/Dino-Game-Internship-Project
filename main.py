@@ -113,7 +113,7 @@ WARNING_AMBER = (255, 180, 0)
 
 GOBLIN_WARNING_START = 900
 GOBLIN_FIGHT_START = 1000
-GOBLIN_FIGHT_END = 1200
+GOBLIN_FIGHT_END = 1300
 goblin_active = False
 goblin_defeated = False
 goblin_x = 850.0
@@ -125,6 +125,10 @@ goblin_frame_index = 0
 rock_frame_index = 0
 rock_list = []   # each entry: [rect, vx, vy]
 goblin_warning_flash_tick = 0
+
+heart_powerup_active = False
+heart_powerup_rect = None
+heart_powerup_timer = 0
 
 is_invincible = False
 invincible_timer = 0
@@ -150,6 +154,7 @@ SKY_SURF = sky_1
 GROUND_SURF = pygame.image.load("graphics/level/ground.png").convert()
 heart_surf = pygame.image.load("graphics/level/heart.png").convert_alpha()
 heart_surf = pygame.transform.scale_by(heart_surf,2.5)
+heart_powerup_surf = pygame.transform.scale_by(heart_surf,1.2)
 title_screen = pygame.image.load("graphics/menus/title_screen.png").convert()
 title_screen = pygame.transform.scale(title_screen, (800,400))
 story_screen = pygame.image.load("graphics/menus/story_screen.png").convert()
@@ -182,6 +187,7 @@ hurt = pygame.mixer.Sound("audio/hurt.mp3")
 click = pygame.mixer.Sound("audio/click.mp3")
 game_over = pygame.mixer.Sound("audio/game_over.mp3")
 dragon_breath = pygame.mixer.Sound("audio/dragon_breath.mp3")
+powerup = pygame.mixer.Sound("audio/powerup.mp3")
 
 music.set_volume(0.7)
 music.play(loops=-1)
@@ -304,6 +310,13 @@ while running:
                         boss_drop_timer = 0
                         fireball_list.clear()
                         warning_flash_tick = 0
+                        goblin_active = False
+                        goblin_defeated = False
+                        goblin_x = 850.0
+                        goblin_attack_timer = 0
+                        goblin_state = "idle"
+                        rock_list.clear()
+                        goblin_warning_flash_tick = 0
 
                     elif event.key == pygame.K_k:
                         click.play(loops= 0)
@@ -370,6 +383,13 @@ while running:
                             boss_drop_timer = 0
                             fireball_list.clear()
                             warning_flash_tick = 0
+                            goblin_active = False
+                            goblin_defeated = False
+                            goblin_x = 850.0
+                            goblin_attack_timer = 0
+                            goblin_state = "idle"
+                            rock_list.clear()
+                            goblin_warning_flash_tick = 0   
                         
                         elif event.key == pygame.K_ESCAPE:
                             click.play(loops= 0)
@@ -433,6 +453,17 @@ while running:
         # pygame.draw.rect(screen, "#c0e8ec", score_rect, 10)
         # screen.blit(score_surf, score_rect)
         score = display_score()
+
+        heart_powerup_timer += 1
+
+        if not heart_powerup_active and heart_powerup_timer >= 300:
+            heart_powerup_timer = 0
+
+            if randint(1, 3) == 1:
+                heart_powerup_active = True
+                heart_powerup_rect = heart_powerup_surf.get_rect(
+                    bottomleft=(850, GROUND_Y)
+                )
         for i in range(lives):
             screen.blit(heart_surf, (10 + i * 40, 10))
 
@@ -535,7 +566,7 @@ while running:
                 screen.blit(line1, line1.get_rect(center=(400, 183)))
                 screen.blit(line2, line2.get_rect(center=(400, 218)))
 
-        elif GOBLIN_FIGHT_START <= score < GOBLIN_FIGHT_END and not goblin_defeated:
+        elif score >= GOBLIN_FIGHT_START and not goblin_defeated:
             if not goblin_active:
                 goblin_active = True
                 goblin_x = 850.0
@@ -584,7 +615,7 @@ while running:
             new_rock_list = []
             for rock in rock_list:
                 rock_rect, vx, vy = rock
-                vy += 0.6  # gravity
+                vy += randint(2,7)/10  # gravity
                 rock_rect.x += int(vx)
                 rock_rect.y += int(vy)
                 
@@ -631,6 +662,20 @@ while running:
 
         else:
             obstacle_rect_list = obstacle_movement(obstacle_rect_list)
+
+            if heart_powerup_active:
+                heart_powerup_rect.x -= int(5 + score / 80)
+
+                screen.blit(heart_powerup_surf, heart_powerup_rect)
+
+                if player_rect.colliderect(heart_powerup_rect):
+                    lives = min(lives + 1, 5)
+                    powerup.play(loops=0)
+                    heart_powerup_active = False
+
+                if heart_powerup_rect.right < 0:
+                    heart_powerup_active = False
+
             if not collisions(player_rect, obstacle_rect_list) and not is_invincible:
                 lives -= 1
                 hurt.play(loops=0)
