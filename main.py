@@ -92,7 +92,7 @@ ground_speed = 5
 game_speed = int(5 + score / 75)
 sky_x = 0
 lives = 3
-
+warning_flash_tick = 0
 # Boss fight state
 BOSS_WARNING_START = 400
 BOSS_FIGHT_START = 500
@@ -101,12 +101,30 @@ boss_defeated = False
 boss_x = 900.0
 boss_y = 20.0
 boss_speed = 2.2
-boss_drop_interval = 47
+boss_drop_timer = 0
+boss_drop_interval = 50
 boss_frame_index = 0
 fireball_frame_index = 0
 fireball_list = []
 WARNING_RED = (255, 40, 40)
 WARNING_AMBER = (255, 180, 0)
+
+# Goblin King fight
+
+GOBLIN_WARNING_START = 900
+GOBLIN_FIGHT_START = 1000
+GOBLIN_FIGHT_END = 1200
+goblin_active = False
+goblin_defeated = False
+goblin_x = 850.0
+goblin_y = 300  # set properly once sprite is loaded, see step 2
+goblin_state = "idle"   # "idle" -> "windup" -> "throw" -> back to "idle"
+goblin_attack_timer = 0
+GOBLIN_ATTACK_INTERVAL = 90   # frames between throws (1.5s at 60fps)
+goblin_frame_index = 0
+rock_frame_index = 0
+rock_list = []   # each entry: [rect, vx, vy]
+goblin_warning_flash_tick = 0
 
 is_invincible = False
 invincible_timer = 0
@@ -140,7 +158,22 @@ level_screen = pygame.image.load("graphics/menus/level_screen.png").convert()
 level_screen = pygame.transform.scale(level_screen, (800,400))
 game_font = pygame.font.Font(pygame.font.get_default_font(), 50)
 game_font = pygame.font.Font("graphics/fonts/PressStart2P.ttf", 32)
+small_font = pygame.font.Font("graphics/fonts/PressStart2p.ttf", 14)
 
+
+# Goblin king sprites
+goblin_frame_1 = pygame.image.load("graphics/goblin/goblin_1.png").convert_alpha()
+goblin_frame_1 = pygame.transform.scale_by(goblin_frame_1, 1.5)
+goblin_frame_2 = pygame.image.load("graphics/goblin/goblin_2.png").convert_alpha()
+goblin_frame_2 = pygame.transform.scale_by(goblin_frame_2, 1.5)
+goblin_frames = [goblin_frame_1, goblin_frame_2]
+goblin_frame_index = 0
+goblin_surf = goblin_frames[goblin_frame_index]
+goblin_y = GROUND_Y - goblin_surf.get_height()
+
+# Rock projectile sprite
+rock_surf = pygame.image.load("graphics/goblin/rock.png").convert_alpha()
+rock_surf = pygame.transform.scale_by(rock_surf,1.1)
 # Load royalty free audio assets
 
 music = pygame.mixer.Sound("audio/music.mp3")
@@ -233,6 +266,9 @@ pygame.time.set_timer(boss_animation_timer, 150)
 
 fireball_animation_timer = pygame.USEREVENT + 4
 pygame.time.set_timer(fireball_animation_timer, 150)
+
+goblin_animation_timer = pygame.USEREVENT + 5
+pygame.time.set_timer(goblin_animation_timer, 200)
 
 while running:
     # Poll for events
@@ -340,7 +376,7 @@ while running:
                             menu_state = "main"                     
 
         if is_playing:
-            if event.type == obstacle_timer and not boss_active:
+            if event.type == obstacle_timer and not boss_active and not goblin_active:
                 if randint(0,2):
                     obstacle_rect_list.append(egg_surf.get_rect(bottomleft=(randint(900,1100),300)))
                 else:
@@ -366,7 +402,12 @@ while running:
                 else: fireball_frame_index = 0
                 fireball_surf = fireball_frames[fireball_frame_index]
 
-
+            if event.type == goblin_animation_timer and goblin_active:
+                if goblin_state == "windup":
+                    goblin_frame_index = 1
+                else:
+                    goblin_frame_index = 0
+                goblin_surf = goblin_frames[goblin_frame_index]
 
     if is_playing:
         screen.fill("purple")  # Wipe the screen
@@ -482,7 +523,112 @@ while running:
                         username = ""
                     break
 
-        # ── Normal gameplay ──
+        elif GOBLIN_WARNING_START <= score < GOBLIN_FIGHT_START:
+            obstacle_rect_list.clear()
+            goblin_warning_flash_tick += 1
+            if (goblin_warning_flash_tick // 20) % 2 == 0:
+                overlay = pygame.Surface((800, 60), pygame.SRCALPHA)
+                overlay.fill((0, 100, 0, 140))
+                screen.blit(overlay, (0, 170))
+                line1 = game_font.render("GOBLIN KING AT 1000", False, (150, 255, 150))
+                line2 = game_font.render("BRACE YOURSELF", False, WARNING_RED)
+                screen.blit(line1, line1.get_rect(center=(400, 183)))
+                screen.blit(line2, line2.get_rect(center=(400, 218)))
+
+        elif GOBLIN_FIGHT_START <= score < GOBLIN_FIGHT_END and not goblin_defeated:
+            if not goblin_active:
+                goblin_active = True
+                goblin_x = 850.0
+                goblin_attack_timer = 0
+                goblin_state = "idle"
+                obstacle_rect_list.clear()
+                rock_list.clear()
+
+        # Walk slowly toward arena position, then hold
+            if goblin_x > 600:
+                goblin_x -= 1.0
+
+            screen.blit(goblin_surf, (int(goblin_x), int(goblin_y)))
+
+         # Attack cycle: idle -> windup -> throw -> idle
+            goblin_attack_timer += 1
+
+            if goblin_state == "idle" and goblin_attack_timer >= GOBLIN_ATTACK_INTERVAL:
+                goblin_state = "windup"
+                goblin_attack_timer = 0
+
+            elif goblin_state == "windup" and goblin_attack_timer >= 25:
+            # Throw the rock — arc toward the player's current x position
+                goblin_state = "throw"
+                goblin_attack_timer = 0
+
+                start_x = int(goblin_x)
+                start_y = int(goblin_y) + goblin_surf.get_height() // 2
+                target_x = player_rect.centerx
+
+                dist = start_x - target_x
+                vy = -14.0
+                gravity = 0.3
+                time_of_flight = (2* abs(vy)) / gravity
+
+                vx = -(dist/time_of_flight)
+
+                rock_rect = rock_surf.get_rect(center=(start_x, start_y))
+                rock_list.append([rock_rect, vx, vy])
+
+            elif goblin_state == "throw" and goblin_attack_timer >= 15:
+                goblin_state = "idle"
+                goblin_attack_timer = 0
+
+            # Update and draw rocks (arc motion with gravity)
+            new_rock_list = []
+            for rock in rock_list:
+                rock_rect, vx, vy = rock
+                vy += 0.6  # gravity
+                rock_rect.x += int(vx)
+                rock_rect.y += int(vy)
+                
+                if rock_rect.bottom >= GROUND_Y:
+                    rock_rect.bottom = GROUND_Y
+                    vy = 0
+                    vx = -(5 + score/80)
+
+                rock[1] = vx
+                rock[2] = vy
+
+                screen.blit(rock_surf, rock_rect)
+
+                # Keep rock alive until it's below ground or off-screen
+                if rock_rect.right >0:
+                    new_rock_list.append(rock)
+            rock_list[:] = new_rock_list
+
+            # Rock collision
+            for rock in rock_list:
+                rock_rect = rock[0]
+                if player_rect.colliderect(rock_rect) and not is_invincible:
+                    lives -= 1
+                    hurt.play(loops=0)
+                    is_invincible = True
+                    invincible_timer = invincible_duration
+                    rock_list.clear()
+                    if lives <= 0:
+                        is_playing = False
+                        menu_state = "game_over"
+                        is_entering_name = True
+                        username = ""
+                    break
+
+            # Goblin defeated by surviving to score 1100
+            if score >= GOBLIN_FIGHT_END:
+                goblin_active = False
+                goblin_defeated = True
+                rock_list.clear()
+
+            # HUD label
+            goblin_label = small_font.render("★ GOBLIN KING ★", False, (150, 255, 150))
+            screen.blit(goblin_label, goblin_label.get_rect(center=(400, 90)))
+
         else:
             obstacle_rect_list = obstacle_movement(obstacle_rect_list)
             if not collisions(player_rect, obstacle_rect_list) and not is_invincible:
@@ -496,7 +642,6 @@ while running:
                     menu_state = "game_over"
                     is_entering_name = True
                     username = ""
-
 
         # Invincibility Timer
 
